@@ -1,41 +1,50 @@
 class TableAnalyzer {
-  static analyze(tables, config = { threshold: 20, minSizeBytes: 1048576 }) {
+  static analyze(tables, config = { threshold: 20, minSizeBytes: 1048576, verbose: false }) {
     const dirtyTables = [];
 
-    // Debug log: let´s see all the table and their statistics
-    console.log("Analyzing tables...");
+    // Exibindo tabelas se verbose for true
+    if (config.verbose) {
+      console.log("Analyzing tables...");
+    }
 
-    for (let i = 0; i < tables.length; i++) {
-      const table = tables[i];
-      const deadTupPercentage = table.dead_tup_percentage;
-      const tableSize = this._parseSizeToBytes(table.table_size);
+    for (const table of tables) {
+      const { dead_tup_percentage: deadTupPercentage, table_size: tableSize, schemaname, relname } = table;
+      const parsedTableSize = this._parseSizeToBytes(tableSize);
 
-      // checking for dead tuples, even with a small percentage
-      if (deadTupPercentage > 0 || tableSize >= config.minSizeBytes) {
-        // allowing dead tuple with any percentage
+      // Verificando as condições de fragmentação
+      if (deadTupPercentage > config.threshold || parsedTableSize >= config.minSizeBytes) {
         dirtyTables.push({
-          schema: table.schemaname,
-          table_name: table.relname,
+          schema: schemaname,
+          table_name: relname,
           dead_tup_percentage: deadTupPercentage,
-          table_size_in_bytes: tableSize,
+          table_size_in_bytes: parsedTableSize,
         });
+      }
+
+      // Log para cada tabela se verbose estiver ativado
+      if (config.verbose) {
+        console.log(`Table: ${schemaname}.${relname}, Dead Tuples: ${deadTupPercentage}%, Size: ${parsedTableSize} bytes`);
       }
     }
 
-    // displaying which tables have were marked with fragments
-    console.log("Fragmented tables:", dirtyTables);
+    // Log do resultado final
+    if (config.verbose) {
+      console.log("Fragmented tables:", dirtyTables);
+    }
+
     return dirtyTables;
   }
 
+  // Melhorando a função de parse para lançar erro em caso de valores inesperados
   static _parseSizeToBytes(sizeStr) {
-    const units = { kB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 };
+    const units = { bytes: 1, kB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 };
     const [value, unit] = sizeStr.split(" ");
-
+  
     if (typeof units[unit] === "undefined") {
-      return parseInt(value); // For cases where the unit is not recognized
+      throw new Error(`Unknown size unit: ${unit}`);
     }
-
-    return parseInt(value) * units[unit];
+  
+    return parseFloat(value) * units[unit];
   }
 }
 
