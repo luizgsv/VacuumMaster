@@ -1,10 +1,17 @@
 import { Client } from 'pg'
-import config from '../config.js'
-
 class VacuumEngine {
-  constructor(dbConfig = config) {
-    this.client = new Client({ connectionString: config.connectionString })
-    this.configClient = dbConfig
+  // Agora o construtor aceita a string de conexão diretamente
+  constructor(connectionString) {
+    this.client = new Client({ connectionString })  // Usa a string de conexão fornecida no CLI
+  }
+
+  initialConfig() {
+    // Esse método ainda pode ser útil para retornar a configuração inicial
+    return {
+      threshold: 20,      // % de dead tuples
+      minSizeBytes: 1024 * 8,  // 8KB de tamanho mínimo
+      useFullVacuum: false,     // Opção para usar FULL VACUUM
+    }
   }
 
   async connect() {
@@ -26,42 +33,33 @@ class VacuumEngine {
     ORDER BY
       n_dead_tup DESC;`
 
-    const res = await this.client.query(query);
+    const res = await this.client.query(query)
     return res.rows
   }
 
-  async vacuumTable(table){
-    const { useFullVacuum = false } = this.configClient
+  async vacuumTable(table) {
+    const { useFullVacuum = false } = this.initialConfig()
     try {
       if (!table?.schema || !table?.table_name) {
-        throw new Error('missing schema or table_name');
+        throw new Error('missing schema or table_name')
       }
-  
+
       const options = [
         useFullVacuum ? 'FULL' : null,
         'VERBOSE',
         'ANALYZE'
-      ].filter(Boolean).join(', ');
-  
-      const queryText = `VACUUM (${options}) ${table.schema}.${table.table_name}`;
-      await this.client.query(queryText);
+      ].filter(Boolean).join(', ')
+
+      const queryText = `VACUUM (${options}) ${table.schema}.${table.table_name}`
+      await this.client.query(queryText)
     } catch (error) {
-      console.log(`Failed to vacuum ${table.schema}.${table.table_name}:`, error.message);
-      throw error;
+      console.log(`Failed to vacuum ${table.schema}.${table.table_name}:`, error.message)
+      throw error
     }
   }
 
   async disconnect() {
     await this.client.end()
-  }
-
-  initialConfig() {
-    return {
-      threshold: this.configClient.threshold,
-      minSize: this.configClient.minSize,
-      minSizeBytes: this.configClient.minSizeBytes,
-      useFullVacuum: this.configClient.useFullVacuum
-    }
   }
 }
 

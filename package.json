@@ -1,15 +1,19 @@
 {
-  "name": "clean-db",
+  "name": "clean-vacuum-cli",
   "version": "1.0.0",
-  "description": "",
+  "description": "CLI to clean PostgreSQL dead tuples using VACUUM.",
   "main": "./src/index.js",
   "type": "module",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "start": "node bin/index.js"
   },
-  "keywords": [],
+  "bin": {
+    "vacuum-cleaner": "bin/index.js"
+  },
+  "keywords": ["postgresql", "vacuum", "cli", "optimizer", "database"],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "dotenv": "^16.5.0",
     "inquirer": "^12.6.0",
